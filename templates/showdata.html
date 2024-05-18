@@ -2,5 +2,67 @@
 
 {% block content %}
 
+<div class="p-5">
+    <h1 class="self-center text-center mt-1">Data Akademik</h1>
+    <br>
+    <hr>
+    <br>
+    {% if encrypted %}
+            <form method="post">
+            <button class="btn btn-primary m-2" href="/showdata">Show Original</button>
+            </form>
+        {% else %}
+            <form method="post">
+            <button class="btn btn-primary m-2" href="/showdata">Encrypt Data</button>
+            </form>
+        {% endif %}
+    <br>
+
+    {% for nim, data in data_per_nim.items() %}
+    <div class="d-flex self-center justify-content-center flex-wrap">
+        <div class="card p-4 m-2">
+            <h3>Data Nilai Mahasiswa - NIM: {{ nim }}</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">NIM</th>
+                        <th scope="col">Nama</th>
+                        <th scope="col">Kode Mata Kuliah</th>
+                        <th scope="col">Nama Mata Kuliah</th>
+                        <th scope="col">SKS</th>
+                        <th scope="col">Nilai</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in data.records %}
+                    <tr>
+                        <td>{{ record.nim }}</td>
+                        <td>{{ record.nama }}</td>
+                        <td>{{ record.kode_mk }}</td>
+                        <td>{{ record.nama_mk }}</td>
+                        <td>{{ record.sks }}</td>
+                        <td>{{ record.nilai }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <h3>IPK: {{ data.ipk }}</h3>
+            <h3>Tanda Tangan Digital: {{ data.ttd }}</h3>
+            <div class="d-flex flex-row">
+            <form method="post" action="/sign">
+                <button class="btn btn-primary m-2" name="nim" value="{{ nim }}">Sign</button>
+            </form>
+            <form method="post" action="/verify">
+                <button class="btn btn-primary m-2" name="nim" value="{{nim}}">Verify</button>
+            </form>
+            <form method="post" action="/transcript">
+                <button class="btn btn-primary m-2" name="nim" value="{{nim}}">Download</button>
+            </form>
+            </div>
+        </div>
+        
+    </div>
+    {% endfor %}
+</div>
 
 {% endblock %}

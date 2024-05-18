@@ -2,5 +2,127 @@
 
 {% block content %}
 
+<div class="p-5">
+    <h1 class="self-center text-center mt-1">Input Data</h1>
+    <br>
+    <p class="fs-4">Input data akademik meliputi data mahasiswa, mata kuliah, dan nilai.</p>
+    <hr>
+    <br>
+    <div class="d-flex self-center justify-content-center flex-wrap">
+    <div class="card p-4 m-2">
+        <h3>Input Data Mahasiswa</h3>
+        <form action="/inputdata" method="post">
+            <div class="mb-3">
+                <label for="nim" class="form-label">NIM</label>
+                <input type="text" class="form-control" id="nim" name="nim" placeholder="ex: 18221002" required>
+            </div>
+            <div class="mb-3">
+                <label for="nama" class="form-label">Nama</label>
+                <input type="text" class="form-control" id="nama" name="nama" placeholder="ex: John Doe" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+    <div class="card p-4 m-2">
+        <h3>Input Data Mata Kuliah</h3>
+        <form action="/inputdata" method="post">
+            <div class="mb-3">
+                <label for="kode" class="form-label">Kode Mata Kuliah</label>
+                <input type="text" class="form-control" id="kode" name="kode" required>
+            </div>
+            <div class="mb-3">
+                <label for="nama" class="form-label">Nama Mata Kuliah</label>
+                <input type="text" class="form-control" id="nama" name="nama" required>
+            </div>
+            <div class="mb-3">
+                <label for="sks" class="form-label">Jumlah SKS</label>
+                <input type="number" class="form-control" id="sks" name="sks" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+    <div class="card p-4 m-2">
+        <h3>Input Data Nilai Mahasiswa</h3>
+        <form action="/inputdata" method="post">
+            <p>Mahasiswa</p>
+            <select class="form-select form-select mb-3" aria-label=".form-select-lg example" name="nim_nilai">
+                <option selected>Pilih Mahasiswa</option>
+                {% for nim, nama in mahasiswa %}
+                <option value="{{ nim }}">{{ nim }} - {{ nama }}</option>
+                {% endfor %}
+              </select>
+            <p>Mata Kuliah</p>
+            <select class="form-select form-select mb-3" aria-label=".form-select-lg example" name="kode_nilai">
+                <option selected>Pilih Mata Kuliah</option>
+                {% for kode, nama, sks in mata_kuliah %}
+                <option value="{{ kode }}">{{ kode }} - {{ nama }}</option>
+                {% endfor %}
+              </select>
+            <p>Nilai</p>
+            <select class="form-select form-select mb-3" aria-label=".form-select-lg example" name="nilai">
+                <option selected>Input Nilai</option>
+                <option value="A">A</option>
+                <option value="AB">AB</option>
+                <option value="B">B</option>
+                <option value="BC">BC</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+              </select>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+</div>
+
+    <br>
+    <hr>
+    <br>
+    <h2 class="self-center text-center mb-4">Data Mahasiswa dan Mata Kuliah</h2>
+    <div class="card p-3">
+    <h3>Daftar Mahasiswa</h3>
+    <div>
+        <table class="table table-striped mt-4">
+            <thead>
+                <tr>
+                    <th scope="col">NIM</th>
+                    <th scope="col">Nama</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nim, nama in mahasiswa %}
+                <tr>
+                    <td>{{ nim }}</td>
+                    <td>{{ nama }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    </div>
+    <br>
+    <div class="card p-3">
+    <h3>Daftar Mata Kuliah</h3>
+    <div>
+        <table class="table table-striped mt-4">
+            <thead>
+                <tr>
+                    <th scope="col">Kode Mata Kuliah</th>
+                    <th scope="col">Nama Mata Kuliah</th>
+                    <th scope="col">Jumlah SKS</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for kode, nama, sks in mata_kuliah %}
+                <tr>
+                    <td>{{ kode }}</td>
+                    <td>{{ nama }}</td>
+                    <td>{{ sks }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    </div>  
+</div>
 
 {% endblock %}

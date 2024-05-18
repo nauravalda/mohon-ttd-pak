@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-5">
+<h1 class="self-center text-center mt-1">Program Enkripsi Database dan Digital Signature</h1>
+<br>
+<p class="fs-4">Program Basisdata Terenkripsi dan Bertanda-tangan Digital dengan Menggunakan Algoritma RSA dan Fungsi hash SHA-3</p>
+<hr>
+<br>
+<p class="fs-5">Berikut merupakan beberapa menu yang dapat dipilih</p>
+
+<div class="row">
+    <div class="col-sm-6 mb-3 mb-sm-0">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Generate Key</h5>
+          <p class="card-text">Pembangkitan kunci publik dan kunci privat untuk RSA pada digital signature, serta pemilihan kunci untuk RC4 dan AES</p>
+          <a href="#" class="btn btn-primary">Generate Key</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Input Data</h5>
+          <p class="card-text">Input data akademik meliputi data mahasiswa, mata kuliah, dan nilai</p>
+          <a href="#" class="btn btn-primary">Input Data</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 mt-3">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Show Data</h5>
+            <p class="card-text">Menampilkan data akademik yang sudah diinput, enkripsi field data, dan pembangkitan tanda tangan digital pada transkrip akademik setiap mahasiswa.</p>
+            <a href="#" class="btn btn-primary">Show Data</a>
+          </div>
+        </div>
+      </div>
+  </div>
+</div>
+{% endblock %}

@@ -46,6 +46,23 @@ def get_all_data_by_nim(conn, nim):
     rows = cur.fetchall()
     return rows
 
+def get_nama_by_nim(conn, nim):
+    cur = conn.cursor()
+    cur.execute("SELECT nama FROM mahasiswa WHERE nim = ?", (nim,))
+    rows = cur.fetchall()
+    nama = rows[0][0]
+    return nama
+
+def get_nama_mk_sks_by_kode(conn, kode):
+    cur = conn.cursor()
+    cur.execute("SELECT nama, sks FROM mata_kuliah WHERE kode = ?", (kode,))
+    rows = cur.fetchall()
+    nama = rows[0][0]
+    sks = rows[0][1]
+    return (nama, sks)
+
+    
+
 def hitung_ipk(records):
     total_sks = 0
     total_points = 0
@@ -62,6 +79,34 @@ def hitung_ipk(records):
         return 0.0
     
     return total_points / total_sks
+
+def encrypt (data_akademik):
+    for nim in data_akademik:
+        for record in data_akademik[nim]['records']:
+            record['nim'] = base64.b64encode(rc4.rc4(bytearray(record['nim'], 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
+            record['nama'] = base64.b64encode(rc4.rc4(bytearray(record['nama'], 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
+            record['kode_mk'] = base64.b64encode(rc4.rc4(bytearray(record['kode_mk'], 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
+            record['nama_mk'] = base64.b64encode(rc4.rc4(bytearray(record['nama_mk'], 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
+            record['sks'] = base64.b64encode(rc4.rc4(bytearray(str(record['sks']), 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
+            record['nilai'] = base64.b64encode(rc4.rc4(bytearray(record['nilai'], 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
+        data_akademik[nim]['nama'] = base64.b64encode(rc4.rc4(bytearray(data_akademik[nim]['nama'], 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
+        data_akademik[nim]['ipk'] = base64.b64encode(rc4.rc4(bytearray(str(data_akademik[nim]['ipk']), 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
+        data_akademik[nim]['ttd'] = base64.b64encode(rc4.rc4(bytearray(data_akademik[nim]['ttd'], 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
+    return data_akademik
+
+def decrypt (data_akademik):
+    for nim in data_akademik:
+        for record in data_akademik[nim]['records']:
+            record['nim'] = rc4.rc4(base64.b64decode(record['nim']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8')
+            record['nama'] = rc4.rc4(base64.b64decode(record['nama']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8')
+            record['kode_mk'] = rc4.rc4(base64.b64decode(record['kode_mk']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8')
+            record['nama_mk'] = rc4.rc4(base64.b64decode(record['nama_mk']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8')
+            record['sks'] = int(rc4.rc4(base64.b64decode(record['sks']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8'))
+            record['nilai'] = rc4.rc4(base64.b64decode(record['nilai']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8')
+        data_akademik[nim]['nama'] = rc4.rc4(base64.b64decode(data_akademik[nim]['nama']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8')
+        data_akademik[nim]['ipk'] = float(rc4.rc4(base64.b64decode(data_akademik[nim]['ipk']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8'))
+        data_akademik[nim]['ttd'] = rc4.rc4(base64.b64decode(data_akademik[nim]['ttd']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8')
+    return data_akademik
 
 @app.route('/')
 def index():
@@ -93,10 +138,37 @@ def inputdata():
             nilai = request.form['nilai']
             conn = create_connection('database/data_akademik.db')
             cur = conn.cursor()
-            cur.execute("INSERT INTO nilai (nim, kode, nilai) VALUES (?, ?, ?)", (nim_nilai, kode_nilai, nilai))
+            # cur.execute("INSERT INTO nilai (nim, kode, nilai) VALUES (?, ?, ?)", (nim_nilai, kode_nilai, nilai))
+            nama = get_nama_by_nim(conn, nim_nilai)
+            (nama_mk, sks) = get_nama_mk_sks_by_kode(conn, kode_nilai)
+
+            if session['encrypted'] == True:
+                session['data_akademik'] = decrypt(session['data_akademik'])
+
+            if nim_nilai not in session['data_akademik']:
+                session['data_akademik'][nim_nilai] = {
+                    'nama': nama,
+                    'records': [],
+                    'ipk': 0,
+                    'ttd': '',
+                }
+
+            session['data_akademik'][nim_nilai]['records'].append({
+                'nim': nim_nilai,
+                'nama': nama,
+                'kode_mk': kode_nilai,
+                'nama_mk': nama_mk,
+                'sks': sks,
+                'nilai': nilai,
+            })
+
+            session['data_akademik'][nim_nilai]['ipk'] = hitung_ipk(session['data_akademik'][nim_nilai]['records'])
+            if session['encrypted'] == True:
+                session['data_akademik'] = encrypt(session['data_akademik'])
             conn.commit()
             conn.close()
-        return render_template('inputdata.html', mahasiswa=get_mahasiswa(create_connection('database/data_akademik.db')), mata_kuliah=get_matakuliah(create_connection('database/data_akademik.db')))
+            session.modified = True
+        return render_template('inputdata.html', mahasiswa=get_mahasiswa(create_connection('database/data_akademik.db')), mata_kuliah=get_matakuliah(create_connection('database/data_akademik.db')), data=session['data_akademik'])
     mahasiswa = get_mahasiswa(create_connection('database/data_akademik.db'))
     mata_kuliah = get_matakuliah(create_connection('database/data_akademik.db'))
     return render_template('inputdata.html', mahasiswa=mahasiswa, mata_kuliah=mata_kuliah)
@@ -118,72 +190,49 @@ def generatekey():
             (public_key, private_key) = rsa.generate_key_pair()
             session['public_key'] = public_key
             session['private_key'] = private_key
+
             return render_template('generatekey.html', public_key=session['public_key'], private_key=session['private_key'])
     return render_template('generatekey.html', public_key=session['public_key'], private_key=session['private_key'], rc4_key=session['rc4_key'])
 
 @app.route('/showdata', methods=['GET', 'POST'])
 def showdata():
     if request.method == 'POST':
-        data_per_nim = session['data_akademik']
         if session['rc4_key'] is not None:
             if session['encrypted'] == False:
-                for nim in data_per_nim:
-                    for record in data_per_nim[nim]['records']:
-                        record['nim'] = base64.b64encode(rc4.rc4(bytearray(record['nim'], 'utf-8'), bytes(session['rc4_key'], 'utf-8'))).decode('utf-8')
-                        record['nama'] = base64.b64encode(rc4.rc4(bytearray(record['nama'], 'utf-8'), bytes(session['rc4_key'],'utf-8'))).decode('utf-8')
-                        record['kode_mk'] = base64.b64encode(rc4.rc4(bytearray(record['kode_mk'], 'utf-8'), bytes(session['rc4_key'],'utf-8'))).decode('utf-8')
-                        record['nama_mk'] = base64.b64encode(rc4.rc4(bytearray(record['nama_mk'], 'utf-8'), bytes(session['rc4_key'],'utf-8'))).decode('utf-8')
-                        record['sks'] = base64.b64encode(rc4.rc4(bytearray(str(record['sks']), 'utf-8'), bytes(session['rc4_key'],'utf-8'))).decode('utf-8')
-                        record['nilai'] = base64.b64encode(rc4.rc4(bytearray(record['nilai'], 'utf-8'), bytes(session['rc4_key'],'utf-8'))).decode('utf-8')
-                    data_per_nim[nim]['nama'] = base64.b64encode(rc4.rc4(bytearray(data_per_nim[nim]['nama'], 'utf-8'), bytes(session['rc4_key'],'utf-8'))).decode('utf-8')
-                    data_per_nim[nim]['ipk'] = base64.b64encode(rc4.rc4(bytearray(str(data_per_nim[nim]['ipk']), 'utf-8'), bytes(session['rc4_key'],'utf-8'))).decode('utf-8')
-                    data_per_nim[nim]['ttd'] = base64.b64encode(rc4.rc4(bytearray(data_per_nim[nim]['ttd'], 'utf-8'), bytes(session['rc4_key'],'utf-8'))).decode('utf-8')
+                session['data_akademik'] = encrypt(session['data_akademik'])
                 session['encrypted'] = True
-                session['data_akademik'] = data_per_nim
             else:
-                data_per_nim = session['data_akademik']
-                for nim in data_per_nim:
-                    for record in data_per_nim[nim]['records']:
-                        record['nim'] = rc4.rc4(base64.b64decode(record['nim']), bytes(session['rc4_key'], 'utf-8')).decode('utf-8')
-                        record['nama'] = rc4.rc4(base64.b64decode(record['nama']), bytes(session['rc4_key'],'utf-8')).decode('utf-8')
-                        record['kode_mk'] = rc4.rc4(base64.b64decode(record['kode_mk']), bytes(session['rc4_key'],'utf-8')).decode('utf-8')
-                        record['nama_mk'] = rc4.rc4(base64.b64decode(record['nama_mk']), bytes(session['rc4_key'],'utf-8')).decode('utf-8')
-                        record['sks'] = rc4.rc4(base64.b64decode(record['sks']), bytes(session['rc4_key'],'utf-8')).decode('utf-8')
-                        record['nilai'] = rc4.rc4(base64.b64decode(record['nilai']), bytes(session['rc4_key'],'utf-8')).decode('utf-8')
-                    data_per_nim[nim]['nama'] = rc4.rc4(base64.b64decode(data_per_nim[nim]['nama']), bytes(session['rc4_key'],'utf-8')).decode('utf-8')
-                    data_per_nim[nim]['ipk'] = rc4.rc4(base64.b64decode(data_per_nim[nim]['ipk']), bytes(session['rc4_key'],'utf-8')).decode('utf-8')
-                    data_per_nim[nim]['ttd'] = rc4.rc4(base64.b64decode(data_per_nim[nim]['ttd']), bytes(session['rc4_key'],'utf-8')).decode('utf-8')
+                session['data_akademik'] = decrypt(session['data_akademik'])
                 session['encrypted'] = False
-                session['data_akademik'] = data_per_nim
 
             return render_template('showdata.html', data_per_nim=session['data_akademik'], encrypted=session['encrypted'])
-    conn = create_connection('database/data_akademik.db')
-    data = get_all_data(conn)
-    data_per_nim = OrderedDict()  # Menggunakan OrderedDict untuk menyimpan urutan
-    for row in data:
-        nim = row[0]
-        if nim not in data_per_nim:
-            data_per_nim[nim] = {
+    if 'data_akademik' not in session or session['data_akademik'] == {}:
+        conn = create_connection('database/data_akademik.db')
+        data = get_all_data(conn)
+        data_per_nim = OrderedDict()  # Menggunakan OrderedDict untuk menyimpan urutan
+        for row in data:
+            nim = row[0]
+            if nim not in data_per_nim:
+                data_per_nim[nim] = {
+                    'nama': row[1],
+                    'records': [],
+                    'ipk': 0.0,
+                    'ttd': ''  # Placeholder untuk tanda tangan digital
+                }
+            data_per_nim[nim]['records'].append({
+                'nim': row[0],
                 'nama': row[1],
-                'records': [],
-                'ipk': 0.0,
-                'ttd': ''  # Placeholder untuk tanda tangan digital
-            }
-        data_per_nim[nim]['records'].append({
-            'nim': row[0],
-            'nama': row[1],
-            'kode_mk': row[2],  
-            'nama_mk': row[3],
-            'sks': row[4],
-            'nilai': row[5]            
-        })
-    # Hitung IPK untuk setiap NIM
-    for nim in data_per_nim:
-        data_per_nim[nim]['ipk'] = hitung_ipk(data_per_nim[nim]['records'])
+                'kode_mk': row[2],  
+                'nama_mk': row[3],
+                'sks': row[4],
+                'nilai': row[5]            
+            })
+        # Hitung IPK untuk setiap NIM
+        for nim in data_per_nim:
+            data_per_nim[nim]['ipk'] = hitung_ipk(data_per_nim[nim]['records'])
+        session['data_akademik'] = data_per_nim
     if 'encrypted' not in session:
             session['encrypted'] = False
-    if 'data_akademik' not in session:
-            session['data_akademik'] = data_per_nim
     return render_template('showdata.html', data_per_nim=session['data_akademik'], encrypted=session['encrypted'])
 
 @app.route('/sign', methods=['GET', 'POST'])

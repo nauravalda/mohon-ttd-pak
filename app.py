@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, session, redirect, url_for, send_file, flash
+
 import base64
 import sqlite3
 from hashlib import sha3_256 as sha3
@@ -6,6 +7,7 @@ from collections import OrderedDict
 from xhtml2pdf import pisa
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
+from pypdf import PdfReader
 
 import cipher.rc4 as rc4
 import cipher.rsa as rsa
@@ -30,23 +32,32 @@ def get_mahasiswa(conn):
     cur = conn.cursor()
     cur.execute("SELECT * FROM mahasiswa")
     rows = cur.fetchall()
+    conn.commit()
+    conn.close()
     return rows
 
 def get_matakuliah(conn):
     cur = conn.cursor()
     cur.execute("SELECT * FROM mata_kuliah")
     rows = cur.fetchall()
+    conn.commit()
+    conn.close()
     return rows
     
 def get_all_data(conn):
     cur = conn.cursor()
     cur.execute("SELECT mahasiswa.nim as nim, mahasiswa.nama as nama, mata_kuliah.kode as kode_mk, mata_kuliah.nama as nama_mk, mata_kuliah.sks as sks, nilai.nilai as nilai FROM nilai JOIN mahasiswa ON nilai.nim = mahasiswa.nim JOIN mata_kuliah ON nilai.kode = mata_kuliah.kode;")
     rows = cur.fetchall()
+    conn.commit()
+    conn.close()
     return rows
+
 def get_all_data_by_nim(conn, nim):
     cur = conn.cursor()
     cur.execute("SELECT mahasiswa.nim as nim, mahasiswa.nama as nama, mata_kuliah.kode as kode_mk, mata_kuliah.nama as nama_mk, mata_kuliah.sks as sks, nilai.nilai as nilai FROM nilai JOIN mahasiswa ON nilai.nim = mahasiswa.nim JOIN mata_kuliah ON nilai.kode = mata_kuliah.kode WHERE mahasiswa.nim = ?;", (nim,))
     rows = cur.fetchall()
+    conn.commit()
+    conn.close()
     return rows
 
 def get_nama_by_nim(conn, nim):
@@ -54,6 +65,8 @@ def get_nama_by_nim(conn, nim):
     cur.execute("SELECT nama FROM mahasiswa WHERE nim = ?", (nim,))
     rows = cur.fetchall()
     nama = rows[0][0]
+    conn.commit()
+    conn.close()
     return nama
 
 def get_nama_mk_sks_by_kode(conn, kode):
@@ -62,7 +75,21 @@ def get_nama_mk_sks_by_kode(conn, kode):
     rows = cur.fetchall()
     nama = rows[0][0]
     sks = rows[0][1]
+    conn.commit()
+    conn.close()
     return (nama, sks)
+
+def get_transcript_by_nim(conn, nim):
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM nilai WHERE nim = ?", (nim,))
+    rows = cur.fetchall()
+    nim = rows[0][0]
+    public_key = rows[0][1]
+    ttd = rows[0][2]
+    rc4_key = rows[0][3]
+    conn.commit()
+    conn.close()
+    return (nim, public_key, ttd, rc4_key)
 
     
 
@@ -139,11 +166,9 @@ def inputdata():
             nim_nilai = request.form['nim_nilai']
             kode_nilai = request.form['kode_nilai']
             nilai = request.form['nilai']
-            conn = create_connection('database/data_akademik.db')
-            cur = conn.cursor()
-            cur.execute("INSERT INTO nilai (nim, kode, nilai) VALUES (?, ?, ?)", (nim_nilai, kode_nilai, nilai))
-            nama = get_nama_by_nim(conn, nim_nilai)
-            (nama_mk, sks) = get_nama_mk_sks_by_kode(conn, kode_nilai)
+
+            nama = get_nama_by_nim(create_connection('database/data_akademik.db'), nim_nilai)
+            (nama_mk, sks) = get_nama_mk_sks_by_kode(create_connection('database/data_akademik.db'), kode_nilai)
 
             if session['encrypted'] == True:
                 session['data_akademik'] = decrypt(session['data_akademik'])
@@ -164,12 +189,18 @@ def inputdata():
                 'sks': sks,
                 'nilai': nilai,
             })
-
+            
             session['data_akademik'][nim_nilai]['ipk'] = hitung_ipk(session['data_akademik'][nim_nilai]['records'])
             if session['encrypted'] == True:
                 session['data_akademik'] = encrypt(session['data_akademik'])
+            
+            conn = create_connection('database/data_akademik.db')
+            cur = conn.cursor()
+            cur.execute("INSERT INTO nilai (nim, kode, nilai) VALUES (?, ?, ?)", (nim_nilai, kode_nilai, nilai))
+            
             conn.commit()
             conn.close()
+            session['data_akademik'][nim_nilai]['ttd'] = ''
             session.modified = True
         return render_template('inputdata.html', mahasiswa=get_mahasiswa(create_connection('database/data_akademik.db')), mata_kuliah=get_matakuliah(create_connection('database/data_akademik.db')), data=session['data_akademik'])
     mahasiswa = get_mahasiswa(create_connection('database/data_akademik.db'))
@@ -221,6 +252,8 @@ def showdata():
     if 'data_akademik' not in session or session['data_akademik'] == {}:
         conn = create_connection('database/data_akademik.db')
         data = get_all_data(conn)
+        conn.commit()
+        conn.close()
         data_per_nim = OrderedDict()  # Menggunakan OrderedDict untuk menyimpan urutan
         for row in data:
             nim = row[0]
@@ -268,34 +301,112 @@ def sign():
             signature = signature + str(signature_array[_])
         
         session['data_akademik'][nim]['ttd'] = base64.b64encode(signature.encode()).decode()
+        session['data_akademik'][nim]['public_key'] = session['public_key']
         session.modified = True
+        database = create_connection('database/data_akademik.db')  
+        cur = database.cursor()
+        cur.execute("INSERT OR REPLACE INTO transkrip (nim, public_key) VALUES (?, ?)", (nim, str(session['public_key'])))
+        database.commit()
+        database.close()
+
+
     return redirect(url_for('showdata'))
 
 
 
 @app.route('/verify', methods=['POST'])
 def verify():
-    try:
-        nim = request.form['nim']
-        if nim in session['data_akademik']:
-            # Get data hash
-            signed_data = str(nim) + str(session['data_akademik'][nim]['nama'])
-            for data in session['data_akademik'][nim]['records']:
-                signed_data = signed_data + str(data['kode_mk']) + str(data['nama_mk']) + str(data['sks']) + str(data['nilai'])
-            signed_data = signed_data + str(session['data_akademik'][nim]['ipk'])
-            nim_hash = sha3(signed_data.encode()).hexdigest()
+    file = request.files['file']
+    if file:
 
-            # Get decrypted signature
-            signature = base64.b64decode(request.form['ttd'].encode()).decode('utf-8')
-            signature_array = [int(_) for _ in signature.split(',')]
-            dec_hash = rsa.decrypt(session['public_key'],signature_array).decode('utf-8')
 
-            if dec_hash == nim_hash:
-                return "1"
-        return "0"
-    except:
-        pass
-    return "0"
+        pdf = PdfReader(file)
+        raw = pdf.pages[0].extract_text()
+        data = raw.split('\n')
+        nim = ""
+        name = ""
+        records = []
+        ipk = ""
+        ttd = ""
+
+
+
+        for i in range(len(data)):
+            if data[i].startswith(" "):
+                data[i] = data[i][1:]
+
+        for i in range(len(data)):
+
+            if data[i].find("NIM:") != -1:
+                nim = data[i].split(": ")[1]
+            elif data[i].find("Nama:") != -1:
+                name = data[i].split(": ")[1]
+            elif data[i].find("Nilai") != -1:
+                i = i + 1
+                while not data[i].find("Total jumlah SKS") != -1:
+                    i = i + 1
+                    records.append({
+                        'kode_mk': data[i],
+                        'nama_mk': data[i+1],
+                        'sks': int(data[i+2]),
+                        'nilai': data[i+3]
+                    })
+                
+                    i = i + 4
+            elif data[i].find("IPK:") != -1:
+                ipk = float(data[i].split(": ")[1])
+            elif data[i].startswith("--Begin signature"):
+                i = i + 1
+                while not data[i].startswith("--End signature"):
+                    ttd = ttd + data[i]
+                    i = i + 1
+                ttd = ttd.replace(" ", "")
+                break
+
+        database = create_connection('database/data_akademik.db')
+        cur = database.cursor()
+        cur.execute("SELECT * FROM transkrip WHERE nim = ?", (nim,))
+        rows = cur.fetchall()
+        database.commit()
+        database.close()
+        if len(rows) == 0:
+            flash(f'{file.filename}', 'danger')
+            return redirect(url_for('transcript_dec'))
+        public_key = rows[0][1]
+        public_key = tuple(map(int, public_key[1:-1].split(',')))
+
+        
+        # Get data hash
+        signed_data = str(nim) + str(name)
+        for record in records:
+            signed_data = signed_data + str(record['kode_mk']) + str(record['nama_mk']) + str(record['sks']) + str(record['nilai'])
+        signed_data = signed_data + str(ipk)
+        nim_hash = sha3(signed_data.encode()).hexdigest()
+
+        print(signed_data)
+        print(nim_hash)
+
+        
+
+        # Get decrypted signature
+        signature = base64.b64decode(ttd.encode()).decode('utf-8')
+        signature_array = [int(_) for _ in signature.split(',')]
+        dec_hash = rsa.decrypt(public_key,signature_array).decode('utf-8')
+        print(dec_hash)
+        
+        if dec_hash == nim_hash:
+            flash(f'{file.filename}', 'success')
+            return redirect(url_for('transcript_dec'))
+        else:
+            flash(f'{file.filename}', 'danger')
+            return redirect(url_for('transcript_dec'))
+
+    return redirect(url_for('transcript_dec'))
+
+
+        
+        
+
 
 @app.route('/transcript', methods=['POST'])
 def transcript():
@@ -318,6 +429,8 @@ def transcript():
     fname = "tmp/file.tmp"
     with open(fname,"wb") as f:
         pisa_res = pisa.CreatePDF(html, f)
+    if not pisa_res.err:
+        return send_file(fname, as_attachment=False, download_name=(str(nim)+".pdf"))
 
     # Encrypt PDF
     fname_enc = "tmp/file_enc.tmp"
@@ -326,18 +439,23 @@ def transcript():
         with open(fname,"rb") as f:
             ct = cipher.encrypt(pad(f.read(), AES.block_size))
             f_enc.write(ct)
-    
+    session['data_akademik'][nim]['aes_key'] = session['aes_key']
+    session.modified = True
+
     # How to decrypt
     # with open("tmp/dec.pdf","wb") as f_dec:
     #     with open(fname_enc,"rb") as f:
     #         ct = unpad(cipher.decrypt(f.read()),AES.block_size)
     #         f_dec.write(ct)
-    
+
+    database = create_connection('database/data_akademik.db')  
+    cur = database.cursor()
+    cur.execute("INSERT OR REPLACE INTO transkrip (nim, public_key) VALUES (?, ?)", (nim, str(session['public_key'])))
+    database.commit()
+    database.close()    
     # Send PDF
     if not pisa_res.err:
         return send_file(fname_enc, as_attachment=True, download_name=(str(nim)+".pdf"))
-    
-
     return redirect(url_for('showdata'))
 
 @app.route('/decrypt', methods=['GET', 'POST'])
@@ -360,8 +478,10 @@ def transcript_dec():
                 f.write(file_dec)
             file.close()
             
-            return send_file("tmp/decrypted.pdf", as_attachment=False, download_name=("tmp/decrypted.pdf"))
-    return render_template('upload.html')
+            return send_file("tmp/decrypted.pdf", as_attachment=True, download_name=(str(file.filename.split(".")[0])+"-decrypted.pdf"))
+    filename = session.get('last_file', None)
+    return render_template('upload.html', filename=filename)
+
 
 if __name__ == '__main__':
     app.run(debug=True)

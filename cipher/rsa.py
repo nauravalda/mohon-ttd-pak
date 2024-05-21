@@ -17,7 +17,6 @@ def isprime(n):
 
 def generate_prime_number():
     while True:
-        # generate random number between 10000 and 50000
         p = random.randint(10000, 20000)
         if isprime(p):
             return p

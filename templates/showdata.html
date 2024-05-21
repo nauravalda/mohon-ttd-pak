@@ -7,20 +7,37 @@
     <br>
     <hr>
     <br>
-    {% if encrypted %}
-            <form method="post">
+    {% if session['rc4_key'] %}
+        {% if encrypted %}
+        <form method="post">
             <button class="btn btn-primary m-2" href="/showdata">Show Original</button>
-            </form>
+        </form>
         {% else %}
-            <form method="post">
+        <form method="post">
             <button class="btn btn-primary m-2" href="/showdata">Encrypt Data</button>
-            </form>
+        </form>
         {% endif %}
-    <br>
+        <br>
+    {% else %}
+    {% if encrypted %}
+        
+        <form method="post">
+            <button class="btn btn-primary m-2" href="/showdata" disabled>Show Original</button>
+        </form>
+        {% else %}
+        <form method="post">
+            <button class="btn btn-primary m-2" href="/showdata" disabled>Encrypt Data</button>
+        </form>
+        {% endif %}
+        <a href="/generatekey">
+            <button class="btn btn-primary m-2">Generate New Key</button>
+        </a>
+    {% endif %}
+
 
     {% for nim, data in data_per_nim.items() %}
-    <div class="d-flex self-center justify-content-center flex-wrap">
-        <div class="card p-4 m-2">
+    <div class="d-flex self-center justify-content-center flex-wrap ">
+        <div class="card p-4 m-2" style="width: 100%">
             <h3>Data Nilai Mahasiswa - NIM: {{ nim }}</h3>
             <table class="table">
                 <thead>
@@ -50,24 +67,32 @@
             <h3>Tanda Tangan Digital: {{ data.ttd }}</h3>
             {% if not encrypted %}
             <div class="d-flex flex-row">
-            <form method="post" action="/sign">
-                <button class="btn btn-primary m-2" name="nim" value="{{ nim }}">Sign</button>   
-            </form>
-            {% if data.ttd %}
-            <form method="post" action="/verify">
-                <input type="hidden" name="ttd" value="{{ data.ttd }}" />
-                <button class="btn btn-primary m-2" name="nim" value="{{nim}}" >Verify</button>
-            </form>
-            <form method="post" action="/transcript">
-                <button class="btn btn-primary m-2" name="nim" value="{{nim}}">Download</button>
-            </form>
-            {% endif %}
+                {% if session['public_key'] %}
+                <form method="post" action="/sign">
+                    <button class="btn btn-primary m-2" name="nim" value="{{ nim }}">Sign</button>
+                </form>
+                {% else %}
+                <form method="post" action="/sign">
+                    <button class="btn btn-primary m-2" name="nim" value="{{ nim }}" disabled>Sign</button>
+                </form>
+                {% endif %}
+
+                {% if data.ttd %}
+                <form method="post" action="/transcript">
+                    <button class="btn btn-primary m-2" name="nim" value="{{nim}}">Download</button>
+                </form>
+                {% else %}
+                <form method="post" action="/transcript">
+                    <button class="btn btn-primary m-2" name="nim" value="{{nim}}" disabled>Download</button>
+                </form>
+                {% endif %}
             </div>
             {% endif %}
         </div>
-        
+
     </div>
     {% endfor %}
 </div>
+
 
 {% endblock %}

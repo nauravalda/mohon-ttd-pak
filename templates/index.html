@@ -2,19 +2,21 @@
 
 {% block content %}
 <div class="p-5">
-<h1 class="self-center text-center mt-1">Program Enkripsi Database dan Digital Signature</h1>
-<br>
-<p class="fs-4">Program Basisdata Terenkripsi dan Bertanda-tangan Digital dengan Menggunakan Algoritma RSA dan Fungsi hash SHA-3</p>
-<hr>
-<br>
-<p class="fs-5">Berikut merupakan beberapa menu yang dapat dipilih</p>
+  <h1 class="self-center text-center mt-1">Program Enkripsi Database dan Digital Signature</h1>
+  <br>
+  <p class="fs-4">Program Basisdata Terenkripsi dan Bertanda-tangan Digital dengan Menggunakan Algoritma RSA dan Fungsi
+    hash SHA-3</p>
+  <hr>
+  <br>
+  <p class="fs-5">Berikut merupakan beberapa menu yang dapat dipilih</p>
 
-<div class="row">
+  <div class="row">
     <div class="col-sm-6 mb-3 mb-sm-0">
       <div class="card">
         <div class="card-body">
           <h5 class="card-title">Generate Key</h5>
-          <p class="card-text">Pembangkitan kunci publik dan kunci privat untuk RSA pada digital signature, serta pemilihan kunci untuk RC4 dan AES</p>
+          <p class="card-text">Pembangkitan kunci publik dan kunci privat untuk RSA pada digital signature, serta
+            pemilihan kunci untuk RC4 dan AES</p>
           <a href="/generatekey" class="btn btn-primary">Generate Key</a>
         </div>
       </div>
@@ -29,14 +31,23 @@
       </div>
     </div>
     <div class="col-sm-6 mt-3">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">Show Data</h5>
-            <p class="card-text">Menampilkan data akademik yang sudah diinput, enkripsi field data, dan pembangkitan tanda tangan digital pada transkrip akademik setiap mahasiswa.</p>
-            <a href="/showdata" class="btn btn-primary">Show Data</a>
-          </div>
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Show Data</h5>
+          <p class="card-text">Menampilkan data akademik yang sudah diinput, enkripsi field data, dan pembangkitan tanda
+            tangan digital pada transkrip akademik setiap mahasiswa.</p>
+          <a href="/showdata" class="btn btn-primary">Show Data</a>
         </div>
       </div>
+    </div>
+    <div class="col-sm-6 mt-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Decrypt & Verify</h5>
+          <p class="card-text">Mendekripsi file yang masih terenkripsi, serta verifikasi keaslian file dengan pengecekan digital signature</p>
+          <a href="/decrypt" class="btn btn-primary">Decrypt & Verify</a>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
 {% endblock %}

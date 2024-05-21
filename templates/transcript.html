@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Transkrip Akademik NIM Nama</title>
+<meta http-equiv=Content-Type content="text/html; charset=unicode">
+
+</head>
+
+<body lang=EN-GB style='word-wrap:break-word'>
+
+<div class=WordSection1>
+
+<p class=MsoHeader><span style='font-family:"Times New Roman",serif'>Program
+Studi Sistem dan Teknologi Informasi<br>Sekolah
+Teknik Elektro dan Informatika<br>Institut
+Teknologi Bandung<br>---------------------------------------------------------</span></p>
+
+<p class=MsoNormal ><span style='font-family:"Times New Roman",serif'>&nbsp;</span></p>
+
+<p class=MsoNormal align=center style='text-align:center'><span
+style='font-family:"Times New Roman",serif'>Transkrip Akademik</span></p>
+
+<p class=MsoNormal align=center style='text-align:center'><span
+style='font-family:"Times New Roman",serif'>Nama: {{ data.nama }}<br>NIM: {{ data.nim }}</span></p>
+
+<div align=center>
+
+<table class=MsoTableGrid border=1 cellspacing=0 cellpadding=0
+ style='border-collapse:collapse;border:none'>
+ <tr>
+  <td width=47 valign=top style='width:35.2pt;border:solid windowtext 1.0pt;
+  padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center;margin-top: 8px;'><span style='font-family:"Times New Roman",serif'>No</span></p>
+  </td>
+  <td width=142 valign=top style='width:106.3pt;border:solid windowtext 1.0pt;
+  border-left:none;padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center'><span
+  style='font-family:"Times New Roman",serif'>Kode mata kuliah</span></p>
+  </td>
+  <td width=539 valign=top style='width:404.0pt;border:solid windowtext 1.0pt;
+  border-left:none;padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center'><span
+  style='font-family:"Times New Roman",serif'>Nama mata kuliah</span></p>
+  </td>
+  <td width=66 valign=top style='width:49.6pt;border:solid windowtext 1.0pt;
+  border-left:none;padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center'><span
+  style='font-family:"Times New Roman",serif'>SKS</span></p>
+  </td>
+  <td width=70 valign=top style='width:52.4pt;border:solid windowtext 1.0pt;
+  border-left:none;padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center'><span
+  style='font-family:"Times New Roman",serif'>Nilai</span></p>
+  </td>
+ </tr>
+ {% for rec in data.records %}
+ <tr>
+  <td width=47 valign=top style='vertical-align: middle;width:35.2pt;border:solid windowtext 1.0pt;
+  border-top:none;padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center'><span
+  style='font-family:"Times New Roman",serif'>{{ rec.no }}</span></p>
+  </td>
+  <td width=142 valign=top style='width:106.3pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext 1.0pt;border-right:solid windowtext 1.0pt;
+  padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center'><span
+  style='font-family:"Times New Roman",serif'>{{ rec.kode_mk }}</span></p>
+  </td>
+  <td width=539 valign=top style='width:404.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext 1.0pt;border-right:solid windowtext 1.0pt;
+  padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center'><span
+  style='font-family:"Times New Roman",serif'>{{ rec.nama_mk }}</span></p>
+  </td>
+  <td width=66 valign=top style='width:49.6pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext 1.0pt;border-right:solid windowtext 1.0pt;
+  padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center'><span
+  style='font-family:"Times New Roman",serif'>{{ rec.sks }}</span></p>
+  </td>
+  <td width=70 valign=top style='width:52.4pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext 1.0pt;border-right:solid windowtext 1.0pt;
+  padding:0cm 5.4pt 0cm 5.4pt'>
+  <p class=MsoNormal align=center style='text-align:center'><span
+  style='font-family:"Times New Roman",serif'>{{ rec.nilai }}</span></p>
+  </td>
+ </tr>
+ {% endfor %}
+</table>
+
+</div>
+
+<p class=MsoNormal align=center style='text-align:center'><span
+style='font-family:"Times New Roman",serif'>Total jumlah SKS: {{ data.sks }}<br>IPK: {{ data.ipk }}</span></p>
+
+<p class=MsoNormal ><span style='font-family:"Times New Roman",serif'>Ketua
+Program Studi&nbsp;</span></p>
+
+<p class=MsoNormal style="word-wrap: break-word; max-width: 300px"><span style='font-family:"Times New Roman",serif'>--Begin
+signature—<br>{{ data.ttd }}<br>--End signature—</span></p>
+
+<p class=MsoNormal ><span style='font-family:"Times New Roman",serif'>(I
+Gusti Bagus Baskara Nugraha, Ph.D.)</span></p>
+
+</div>
+
+</body>
+
+</html>

@@ -1,8 +1,11 @@
-from flask import Flask, request, render_template, session, redirect, url_for
+from flask import Flask, request, render_template, session, redirect, url_for, send_file
 import base64
 import sqlite3
 from hashlib import sha3_256 as sha3
 from collections import OrderedDict
+from xhtml2pdf import pisa
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 
 import cipher.rc4 as rc4
 import cipher.rsa as rsa
@@ -182,6 +185,15 @@ def generatekey():
         if 'rc4_key' in request.form:
             rc4_key = request.form['rc4_key']
             session['rc4_key'] = rc4_key
+            aes_key = bytearray(rc4_key,'utf-8')
+            # generate aes-256 key
+            len0 = len(aes_key)
+            for i in range(16):
+                if i >= len0:
+                    aes_key.append(aes_key[i % len0])
+            aes_key = aes_key[:16]
+            session['aes_key'] = bytes(aes_key)
+
             return render_template('generatekey.html', rc4_key=session['rc4_key'], public_key=session['public_key'], private_key=session['private_key'])
         else :
             (public_key, private_key) = rsa.generate_key_pair()
@@ -281,6 +293,49 @@ def verify():
     except:
         pass
     return "0"
+
+@app.route('/transcript', methods=['POST'])
+def transcript():
+
+    # Generate transcript HTML
+    nim = request.form['nim']
+    if nim in session['data_akademik']:
+        data = session['data_akademik'][nim]
+        data['sks'] = 0
+        data['nim'] = nim
+        for rec in data['records']:
+            data['sks'] = data['sks'] + rec['sks']
+        for i in range(len(data['records'])):
+            data['records'][i]['no'] = i + 1
+        data['ttd'] = '\n'.join(data['ttd'][i:i+40] for i in range(0, len(data['ttd']), 40))
+    html = render_template('transcript.html', data=data)
+
+    # Convert HTML to PDF
+    pisa_res = False
+    fname = "tmp/file.tmp"
+    with open(fname,"wb") as f:
+        pisa_res = pisa.CreatePDF(html, f)
+
+    # Encrypt PDF
+    fname_enc = "tmp/file_enc.tmp"
+    cipher = AES.new(session['aes_key'],AES.MODE_ECB)
+    with open(fname_enc,"wb") as f_enc:
+        with open(fname,"rb") as f:
+            ct = cipher.encrypt(pad(f.read(), AES.block_size))
+            f_enc.write(ct)
+    
+    # How to decrypt
+    # with open("tmp/dec.pdf","wb") as f_dec:
+    #     with open(fname_enc,"rb") as f:
+    #         ct = unpad(cipher.decrypt(f.read()),AES.block_size)
+    #         f_dec.write(ct)
+    
+    # Send PDF
+    if not pisa_res.err:
+        return send_file(fname_enc, as_attachment=True, download_name=(str(nim)+".pdf"))
+    
+
+    return redirect(url_for('showdata'))
 
 if __name__ == '__main__':
     app.run(debug=True)

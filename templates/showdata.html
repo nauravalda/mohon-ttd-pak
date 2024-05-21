@@ -48,18 +48,22 @@
             </table>
             <h3>IPK: {{ data.ipk }}</h3>
             <h3>Tanda Tangan Digital: {{ data.ttd }}</h3>
+            {% if not encrypted %}
             <div class="d-flex flex-row">
             <form method="post" action="/sign">
-                <button class="btn btn-primary m-2" name="nim" value="{{ nim }}">Sign</button>
+                <button class="btn btn-primary m-2" name="nim" value="{{ nim }}">Sign</button>   
             </form>
+            {% if data.ttd %}
             <form method="post" action="/verify">
                 <input type="hidden" name="ttd" value="{{ data.ttd }}" />
-                <button class="btn btn-primary m-2" name="nim" value="{{nim}}">Verify</button>
+                <button class="btn btn-primary m-2" name="nim" value="{{nim}}" >Verify</button>
             </form>
             <form method="post" action="/transcript">
                 <button class="btn btn-primary m-2" name="nim" value="{{nim}}">Download</button>
             </form>
+            {% endif %}
             </div>
+            {% endif %}
         </div>
         
     </div>

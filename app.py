@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, session, redirect, url_for, send_file
+from flask import Flask, request, render_template, session, redirect, url_for, send_file, flash
 import base64
 import sqlite3
 from hashlib import sha3_256 as sha3
@@ -11,9 +11,12 @@ import cipher.rc4 as rc4
 import cipher.rsa as rsa
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = "./tmp/"
 app.config['SECRET_KEY'] = 's3cr3t_k3y_Th4t_1s_very_l0ng_and_c0mpl3x'
 
-
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in {'pdf'}
 
 def create_connection(db_file):
     conn = None
@@ -336,6 +339,29 @@ def transcript():
     
 
     return redirect(url_for('showdata'))
+
+@app.route('/decrypt', methods=['GET', 'POST'])
+def transcript_dec():
+    if request.method == 'POST':
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            flash('No file part')
+            return redirect(url_for('showdata'))
+        file = request.files['file']
+        # If the user does not select a file, the browser submits an
+        # empty file without a filename.
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(url_for('showdata'))
+        if file and allowed_file(file.filename):
+            cipher = AES.new(session['aes_key'],AES.MODE_ECB)
+            file_dec = unpad(cipher.decrypt(file.stream.read()),AES.block_size)
+            with open("tmp/decrypted.pdf", "wb") as f:
+                f.write(file_dec)
+            file.close()
+            
+            return send_file("tmp/decrypted.pdf", as_attachment=False, download_name=("tmp/decrypted.pdf"))
+    return render_template('upload.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

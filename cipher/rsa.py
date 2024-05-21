@@ -83,12 +83,8 @@ def decrypt(private_key, ciphertext):
     base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
     # split message into blocks of 2
     blocks = [message[i:i+2] for i in range(0, len(message), 2)]
-    print("blocks")
-    print(blocks)
     # convert blocks to base64
     plaintext = "".join([base64_chars[int(block)] for block in blocks])
-    print("plaintext")
-    print(plaintext)
     
     # decode base64
     # missing_padding = len(plaintext) % 4
@@ -102,32 +98,13 @@ if __name__ == '__main__':
     public_key, private_key = generate_key_pair()
     print(public_key)
     print(private_key)
-    pub1, pri1 = load_key_pair()
-    print(pub1)
-    print(pri1)
 
     text = 'tes'
     b64 = str(base64.b64encode(text.encode('utf-8')).decode('utf-8'))
     print(b64)
     ciphertext = encrypt(public_key, b64)
-    print(ciphertext)
+    print(";",ciphertext)
     plaintext = decrypt(private_key, ciphertext).decode('utf-8')
     print(plaintext)
-
-    # file 
-    # with open('build\K01_18221163_Aufar_Ramadhan_Milestone3.pdf', 'rb') as file:
-    #     data = file.read()
-    #     base64_data = base64.b64encode(data).decode('utf-8')
-    #     ciphertext = encrypt(public_key, base64_data)
-    #     with open('test_encrypted.pdf', 'wb') as file:
-    #         for integer in ciphertext:
-    #             file.write(struct.pack('I', integer))
-    # with open('test_encrypted.pdf', 'rb') as file:
-    #     data = file.read()
-    #     num_integers = len(data) // 4
-    #     ciphertext_in_file = struct.unpack(f"{num_integers}I", data)
-    #     plaintext = decrypt(private_key, ciphertext_in_file)
-    #     with open('test_decrypted.pdf', 'wb') as file:
-    #         file.write(plaintext)
 
     

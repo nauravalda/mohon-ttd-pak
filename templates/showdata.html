@@ -53,6 +53,7 @@
                 <button class="btn btn-primary m-2" name="nim" value="{{ nim }}">Sign</button>
             </form>
             <form method="post" action="/verify">
+                <input type="hidden" name="ttd" value="{{ data.ttd }}" />
                 <button class="btn btn-primary m-2" name="nim" value="{{nim}}">Verify</button>
             </form>
             <form method="post" action="/transcript">

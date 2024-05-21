@@ -1,10 +1,7 @@
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
-from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField
-import os
+from flask import Flask, request, render_template, session, redirect, url_for
 import base64
 import sqlite3
+from hashlib import sha3_256 as sha3
 from collections import OrderedDict
 
 import cipher.rc4 as rc4
@@ -138,7 +135,7 @@ def inputdata():
             nilai = request.form['nilai']
             conn = create_connection('database/data_akademik.db')
             cur = conn.cursor()
-            # cur.execute("INSERT INTO nilai (nim, kode, nilai) VALUES (?, ?, ?)", (nim_nilai, kode_nilai, nilai))
+            cur.execute("INSERT INTO nilai (nim, kode, nilai) VALUES (?, ?, ?)", (nim_nilai, kode_nilai, nilai))
             nama = get_nama_by_nim(conn, nim_nilai)
             (nama_mk, sks) = get_nama_mk_sks_by_kode(conn, kode_nilai)
 
@@ -235,21 +232,55 @@ def showdata():
             session['encrypted'] = False
     return render_template('showdata.html', data_per_nim=session['data_akademik'], encrypted=session['encrypted'])
 
-@app.route('/sign', methods=['GET', 'POST'])
+@app.route('/sign', methods=['POST'])
 def sign():
-    if request.method == 'POST':
-        nim = request.form['nim']
-        data_akademik = session['data_akademik']
-        if nim in data_akademik:
-            data_akademik[nim]['ttd'] = 'anjayyyyyyttd'
-            session['data_akademik'] = data_akademik
-
-
+    nim = request.form['nim']
+    if nim in session['data_akademik']:
+        signed_data = str(nim) + str(session['data_akademik'][nim]['nama'])
+        for data in session['data_akademik'][nim]['records']:
+            signed_data = signed_data + str(data['kode_mk']) + str(data['nama_mk']) + str(data['sks']) + str(data['nilai'])
+        signed_data = signed_data + str(session['data_akademik'][nim]['ipk'])
+        # Get encypted hash
+        signature_array = rsa.encrypt(
+            session['private_key'],
+            str(base64.b64encode(sha3(signed_data.encode()).hexdigest().encode('utf-8')).decode('utf-8'))
+        )
+        # Convert signature to base64 string
+        signature = ""
+        for _ in range(len(signature_array)):
+            if _ > 0:
+                signature = signature + ','
+            signature = signature + str(signature_array[_])
+        
+        session['data_akademik'][nim]['ttd'] = base64.b64encode(signature.encode()).decode()
+        session.modified = True
     return redirect(url_for('showdata'))
 
 
 
-# @app.route('/verify<nim>', methods=['GET', 'POST'])
+@app.route('/verify', methods=['POST'])
+def verify():
+    try:
+        nim = request.form['nim']
+        if nim in session['data_akademik']:
+            # Get data hash
+            signed_data = str(nim) + str(session['data_akademik'][nim]['nama'])
+            for data in session['data_akademik'][nim]['records']:
+                signed_data = signed_data + str(data['kode_mk']) + str(data['nama_mk']) + str(data['sks']) + str(data['nilai'])
+            signed_data = signed_data + str(session['data_akademik'][nim]['ipk'])
+            nim_hash = sha3(signed_data.encode()).hexdigest()
+
+            # Get decrypted signature
+            signature = base64.b64decode(request.form['ttd'].encode()).decode('utf-8')
+            signature_array = [int(_) for _ in signature.split(',')]
+            dec_hash = rsa.decrypt(session['public_key'],signature_array).decode('utf-8')
+
+            if dec_hash == nim_hash:
+                return "1"
+        return "0"
+    except:
+        pass
+    return "0"
 
 if __name__ == '__main__':
     app.run(debug=True)

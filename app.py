@@ -250,10 +250,7 @@ def showdata():
 
             return render_template('showdata.html', data_per_nim=session['data_akademik'], encrypted=session['encrypted'])
     if 'data_akademik' not in session or session['data_akademik'] == {}:
-        conn = create_connection('database/data_akademik.db')
-        data = get_all_data(conn)
-        conn.commit()
-        conn.close()
+        data = get_all_data(create_connection('database/data_akademik.db'))
         data_per_nim = OrderedDict()  # Menggunakan OrderedDict untuk menyimpan urutan
         for row in data:
             nim = row[0]
@@ -305,7 +302,8 @@ def sign():
         session.modified = True
         database = create_connection('database/data_akademik.db')  
         cur = database.cursor()
-        cur.execute("INSERT OR REPLACE INTO transkrip (nim, public_key) VALUES (?, ?)", (nim, str(session['public_key'])))
+        cur.execute("INSERT INTO transkrip (nim, public_key) VALUES (?, ?) ON CONFLICT(nim) DO UPDATE SET public_key = excluded.public_key", (nim, str(session['public_key'])))
+
         database.commit()
         database.close()
 
@@ -316,92 +314,117 @@ def sign():
 
 @app.route('/verify', methods=['POST'])
 def verify():
-    file = request.files['file']
-    if file:
+    # if theres a file
 
+    if 'file' in request.files:
+        try:
+            file = request.files['file']
+            pdf = PdfReader(file)
+            raw = pdf.pages[0].extract_text()
+            data = raw.split('\n')
+            nim = ""
+            name = ""
+            records = []
+            ipk = ""
+            ttd = ""
+            
+            for i in range(len(data)):
+                if data[i].startswith(" "):
+                    data[i] = data[i][1:]
 
-        pdf = PdfReader(file)
-        raw = pdf.pages[0].extract_text()
-        data = raw.split('\n')
-        nim = ""
-        name = ""
-        records = []
-        ipk = ""
-        ttd = ""
+            for i in range(len(data)):
 
-
-
-        for i in range(len(data)):
-            if data[i].startswith(" "):
-                data[i] = data[i][1:]
-
-        for i in range(len(data)):
-
-            if data[i].find("NIM:") != -1:
-                nim = data[i].split(": ")[1]
-            elif data[i].find("Nama:") != -1:
-                name = data[i].split(": ")[1]
-            elif data[i].find("Nilai") != -1:
-                i = i + 1
-                while not data[i].find("Total jumlah SKS") != -1:
+                if data[i].find("NIM:") != -1:
+                    nim = data[i].split(": ")[1]
+                elif data[i].find("Nama:") != -1:
+                    name = data[i].split(": ")[1]
+                elif data[i].find("Nilai") != -1:
                     i = i + 1
-                    records.append({
-                        'kode_mk': data[i],
-                        'nama_mk': data[i+1],
-                        'sks': int(data[i+2]),
-                        'nilai': data[i+3]
-                    })
-                
-                    i = i + 4
-            elif data[i].find("IPK:") != -1:
-                ipk = float(data[i].split(": ")[1])
-            elif data[i].startswith("--Begin signature"):
-                i = i + 1
-                while not data[i].startswith("--End signature"):
-                    ttd = ttd + data[i]
+                    while not data[i].find("Total jumlah SKS") != -1:
+                        i = i + 1
+                        records.append({
+                            'kode_mk': data[i],
+                            'nama_mk': data[i+1],
+                            'sks': int(data[i+2]),
+                            'nilai': data[i+3]
+                        })
+                    
+                        i = i + 4
+                elif data[i].find("IPK:") != -1:
+                    ipk = float(data[i].split(": ")[1])
+                elif data[i].startswith("--Begin signature"):
                     i = i + 1
-                ttd = ttd.replace(" ", "")
-                break
+                    while not data[i].startswith("--End signature"):
+                        ttd = ttd + data[i]
+                        i = i + 1
+                    ttd = ttd.replace(" ", "")
+                    break
 
-        database = create_connection('database/data_akademik.db')
-        cur = database.cursor()
-        cur.execute("SELECT * FROM transkrip WHERE nim = ?", (nim,))
-        rows = cur.fetchall()
-        database.commit()
-        database.close()
-        if len(rows) == 0:
+            database = create_connection('database/data_akademik.db')
+            cur = database.cursor()
+            cur.execute("SELECT * FROM transkrip WHERE nim = ?", (nim,))
+            rows = cur.fetchall()
+            database.commit()
+            database.close()
+            if len(rows) == 0:
+                flash(f'{file.filename}', 'danger')
+                return redirect(url_for('transcript_dec'))
+            public_key = rows[0][1]
+            public_key = tuple(map(int, public_key[1:-1].split(',')))
+            print(public_key)
+
+            
+            # Get data hash
+            signed_data = str(nim) + str(name)
+            for record in records:
+                signed_data = signed_data + str(record['kode_mk']) + str(record['nama_mk']) + str(record['sks']) + str(record['nilai'])
+            signed_data = signed_data + str(ipk)
+            nim_hash = sha3(signed_data.encode()).hexdigest()
+
+            # Get decrypted signature
+            signature = base64.b64decode(ttd.encode()).decode('utf-8')
+            signature_array = [int(_) for _ in signature.split(',')]
+            dec_hash = rsa.decrypt(public_key,signature_array).decode('utf-8')
+            print(dec_hash)
+            
+            if dec_hash == nim_hash:
+                flash(f'{file.filename}', 'success')
+                return redirect(url_for('transcript_dec'))
+            else:
+                flash(f'{file.filename}', 'danger')
+                return redirect(url_for('transcript_dec'))
+        except:
             flash(f'{file.filename}', 'danger')
             return redirect(url_for('transcript_dec'))
-        public_key = rows[0][1]
-        public_key = tuple(map(int, public_key[1:-1].split(',')))
 
-        
-        # Get data hash
-        signed_data = str(nim) + str(name)
-        for record in records:
-            signed_data = signed_data + str(record['kode_mk']) + str(record['nama_mk']) + str(record['sks']) + str(record['nilai'])
-        signed_data = signed_data + str(ipk)
-        nim_hash = sha3(signed_data.encode()).hexdigest()
+    if 'nim' in request.form and 'ttd' in request.form:
+        try:
+            nim = request.form['nim']
+            if nim in session['data_akademik']:
+                # Get data hash
+                signed_data = str(nim) + str(session['data_akademik'][nim]['nama'])
+                for data in session['data_akademik'][nim]['records']:
+                    signed_data = signed_data + str(data['kode_mk']) + str(data['nama_mk']) + str(data['sks']) + str(data['nilai'])
+                signed_data = signed_data + str(session['data_akademik'][nim]['ipk'])
+                nim_hash = sha3(signed_data.encode()).hexdigest()
 
-        print(signed_data)
-        print(nim_hash)
+                # Get decrypted signature
+                signature = base64.b64decode(request.form['ttd'].encode()).decode('utf-8')
+                signature_array = [int(_) for _ in signature.split(',')]
+                dec_hash = rsa.decrypt(session['public_key'],signature_array).decode('utf-8')
 
-        
-
-        # Get decrypted signature
-        signature = base64.b64decode(ttd.encode()).decode('utf-8')
-        signature_array = [int(_) for _ in signature.split(',')]
-        dec_hash = rsa.decrypt(public_key,signature_array).decode('utf-8')
-        print(dec_hash)
-        
-        if dec_hash == nim_hash:
-            flash(f'{file.filename}', 'success')
-            return redirect(url_for('transcript_dec'))
-        else:
-            flash(f'{file.filename}', 'danger')
-            return redirect(url_for('transcript_dec'))
-
-    return redirect(url_for('transcript_dec'))
+                if dec_hash == nim_hash:
+                    flash(f'{nim}', 'success')
+                    print("Verified")
+                    return redirect(url_for('showdata'))
+                else:
+                    flash(f'{nim}', 'danger')
+                    print("Not Verified")
+                    return redirect(url_for('showdata'))
+        except:
+            flash(f'{nim}', 'danger')
+            return redirect(url_for('showdata'))
+    return redirect(url_for('showdata'))
 
 
         
@@ -429,8 +452,6 @@ def transcript():
     fname = "tmp/file.tmp"
     with open(fname,"wb") as f:
         pisa_res = pisa.CreatePDF(html, f)
-    if not pisa_res.err:
-        return send_file(fname, as_attachment=False, download_name=(str(nim)+".pdf"))
 
     # Encrypt PDF
     fname_enc = "tmp/file_enc.tmp"
@@ -450,7 +471,7 @@ def transcript():
 
     database = create_connection('database/data_akademik.db')  
     cur = database.cursor()
-    cur.execute("INSERT OR REPLACE INTO transkrip (nim, public_key) VALUES (?, ?)", (nim, str(session['public_key'])))
+    cur.execute("INSERT INTO transkrip (nim, public_key) VALUES (?, ?) ON CONFLICT(nim) DO UPDATE SET public_key = excluded.public_key", (nim, str(session['public_key'])))
     database.commit()
     database.close()    
     # Send PDF
